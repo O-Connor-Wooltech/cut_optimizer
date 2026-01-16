@@ -1,13 +1,39 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from typing import List, Dict, Optional
 
 # Internally we compute in 0.1mm units to support kerf values like 2.8mm exactly.
 SCALE = 10  # 1mm = 10 units (0.1mm per unit)
 
-def mm_to_u(mm: int) -> int:
-    return int(mm) * SCALE
+# 0.5mm expressed in internal 0.1mm units.
+HALF_MM_U = 5
+
+
+def round_up_to_half_mm(mm: float) -> float:
+    """Round *up* to the next 0.5mm boundary.
+
+    Examples:
+      1000.0 -> 1000.0
+      1000.01 -> 1000.5
+      1000.5 -> 1000.5
+      1000.6 -> 1001.0
+    """
+    if mm <= 0:
+        return 0.0
+
+    # Convert to internal 0.1mm units, rounding *up* to the next 0.1mm,
+    # then round *up* again to the next 0.5mm boundary.
+    eps = 1e-9
+    u_tenth = int(math.ceil(float(mm) * SCALE - eps))
+    u_half = int(math.ceil(u_tenth / HALF_MM_U) * HALF_MM_U)
+    return u_half / SCALE
+
+
+def mm_to_u(mm: float) -> int:
+    """Convert mm (may include .5 increments) to internal 0.1mm units."""
+    return int(round(float(mm) * SCALE))
 
 def u_to_mm_str(u: int) -> str:
     # Render tenths-mm units as a human-friendly mm string (no trailing .0)
@@ -17,12 +43,14 @@ def u_to_mm_str(u: int) -> str:
 
 @dataclass(frozen=True)
 class StockItem:
-    length_mm: int
+    # Stored in mm, rounded up to 0.5mm increments at ingest/edit time.
+    length_mm: float
     qty: int
 
 @dataclass(frozen=True)
 class PartItem:
-    length_mm: int
+    # Stored in mm, rounded up to 0.5mm increments at ingest/edit time.
+    length_mm: float
     qty: int
     label: str = ""
 

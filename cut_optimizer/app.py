@@ -6,7 +6,7 @@ from typing import Optional
 from PySide6 import QtWidgets
 
 from .models import StockTableModel, PartsTableModel
-from .io_utils import load_stock_table, load_parts_table, export_plan_csv
+from .io_utils import load_stock_table, load_parts_table, export_plan_csv, export_plan_pdf
 from .optimizer import optimize_cut_order, OptimizeResult, u_to_mm_str, SCALE
 
 
@@ -58,12 +58,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_export = QtWidgets.QPushButton("Export Plan (CSV)")
         self.btn_export.setEnabled(False)
 
+        self.btn_export_pdf = QtWidgets.QPushButton("Export Plan (PDF)")
+        self.btn_export_pdf.setEnabled(False)
+
         top_bar = QtWidgets.QHBoxLayout()
         top_bar.addWidget(QtWidgets.QLabel("Kerf:"))
         top_bar.addWidget(self.kerf_spin)
         top_bar.addStretch(1)
         top_bar.addWidget(self.btn_optimize)
         top_bar.addWidget(self.btn_export)
+        top_bar.addWidget(self.btn_export_pdf)
 
         stock_btns = QtWidgets.QHBoxLayout()
         stock_btns.addWidget(self.btn_load_stock)
@@ -119,6 +123,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_del_part.clicked.connect(self.on_delete_parts)
         self.btn_optimize.clicked.connect(self.on_optimize)
         self.btn_export.clicked.connect(self.on_export)
+        self.btn_export_pdf.clicked.connect(self.on_export_pdf)
 
     def log(self, msg: str) -> None:
         self.status_box.appendPlainText(msg)
@@ -176,6 +181,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._last_result = result
         self.btn_export.setEnabled(True)
+        self.btn_export_pdf.setEnabled(True)
         self.render_result(result, kerf)
 
     def render_result(self, result: OptimizeResult, kerf_mm: float) -> None:
@@ -229,6 +235,19 @@ class MainWindow(QtWidgets.QMainWindow):
                 "Exported",
                 f"Exported:\n{path}\n\nAlso wrote:\n{path}.summary.csv\n{path}.unallocated.csv (if needed)",
             )
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Export error", str(e))
+
+    def on_export_pdf(self) -> None:
+        if not self._last_result:
+            return
+        kerf = float(self.kerf_spin.value())
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Export Plan PDF", "cut_plan.pdf", "PDF (*.pdf)")
+        if not path:
+            return
+        try:
+            export_plan_pdf(path, self._last_result, kerf)
+            QtWidgets.QMessageBox.information(self, "Exported", f"Exported:\n{path}")
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Export error", str(e))
 

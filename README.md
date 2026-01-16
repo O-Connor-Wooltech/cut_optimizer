@@ -8,7 +8,10 @@ Cross-platform desktop app to generate a cut plan for 1D stock lengths (units **
 - Parts input: length + qty + optional label
 - Kerf (blade width) in mm (supports decimals like **2.8**)
 - Import CSV / XLSX
-- Export plan CSV + summary + unallocated
+- Lengths rounded **up** to the next **0.5mm** increment (stock + parts)
+- Export plan:
+  - CSV (plan + separate summary + unallocated)
+  - PDF (multi-page, cuts vertical + sticks horizontal)
 - UI table editing
 
 ---
@@ -134,6 +137,11 @@ python -m cut_optimizer
 
 All lengths are **mm**.
 
+**Rounding rule:** all entered/imported lengths (stock + parts) are rounded **up** to the next **0.5mm**.
+So `1000.01` becomes `1000.5`, and `1000.6` becomes `1001.0`.
+
+> Note: stock/part lengths may be integers or decimals. They are rounded **up** to the next **0.5mm** boundary.
+
 ### Stock CSV/XLSX
 Columns:
 - `stock_length` (number)
@@ -157,6 +165,7 @@ Example:
 part_length,qty,label
 1350,8,Rail
 450,16,Stiffener
+1000.2,4,Bracket (will round to 1000.5)
 ```
 
 > Tip: check the `samples/` folder for example inputs.
@@ -166,9 +175,11 @@ part_length,qty,label
 ## Output
 
 The app exports:
-- **Cut plan CSV** (includes each cut as `length` + `label` where provided)
-- **Summary**
-- **Unallocated parts** (anything that couldn’t be placed)
+- **Cut plan CSV** (one row per stick with a `cuts` list)
+  - Columns: `stick_no`, `stock_length_mm`, `cuts`, `used_mm`, `leftover_mm`, `utilization_pct`
+- **Summary CSV** (`.summary.csv`)
+- **Unallocated parts CSV** (`.unallocated.csv`, if any)
+- **Cut plan PDF** (multi-page table: cut # rows, stick columns, wraps stick columns as needed)
 
 ---
 

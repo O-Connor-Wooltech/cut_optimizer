@@ -3,11 +3,18 @@ from __future__ import annotations
 from typing import Any, List, Optional
 from PySide6 import QtCore
 
-from .optimizer import StockItem, PartItem
+from .optimizer import StockItem, PartItem, round_up_to_half_mm
+
+
+def _fmt_mm(mm: float) -> str:
+    # Display mm values without trailing .0
+    if abs(mm - round(mm)) < 1e-9:
+        return str(int(round(mm)))
+    return f"{mm:.1f}".rstrip("0").rstrip(".")
 
 
 class StockTableModel(QtCore.QAbstractTableModel):
-    HEADERS = ["stock_length (mm)", "qty"]
+    HEADERS = ["stock_length (mm) (rounded up to 0.5mm)", "qty"]
 
     def __init__(self, rows: Optional[List[StockItem]] = None) -> None:
         super().__init__()
@@ -36,21 +43,25 @@ class StockTableModel(QtCore.QAbstractTableModel):
             return None
         row = self._rows[index.row()]
         if role in (QtCore.Qt.DisplayRole, QtCore.Qt.EditRole):
-            return row.length_mm if index.column() == 0 else row.qty
+            return _fmt_mm(row.length_mm) if index.column() == 0 else row.qty
         return None
 
     def setData(self, index: QtCore.QModelIndex, value: Any, role: int = QtCore.Qt.EditRole) -> bool:
         if role != QtCore.Qt.EditRole or not index.isValid():
             return False
         r, c = index.row(), index.column()
-        try:
-            iv = int(str(value).strip())
-        except Exception:
-            return False
         row = self._rows[r]
         if c == 0:
-            self._rows[r] = StockItem(length_mm=max(0, iv), qty=row.qty)
+            try:
+                fv = float(str(value).strip())
+            except Exception:
+                return False
+            self._rows[r] = StockItem(length_mm=round_up_to_half_mm(fv), qty=row.qty)
         elif c == 1:
+            try:
+                iv = int(str(value).strip())
+            except Exception:
+                return False
             self._rows[r] = StockItem(length_mm=row.length_mm, qty=max(0, iv))
         else:
             return False
@@ -79,7 +90,7 @@ class StockTableModel(QtCore.QAbstractTableModel):
 
 
 class PartsTableModel(QtCore.QAbstractTableModel):
-    HEADERS = ["part_length (mm)", "qty", "label (optional)"]
+    HEADERS = ["part_length (mm) (rounded up to 0.5mm)", "qty", "label (optional)"]
 
     def __init__(self, rows: Optional[List[PartItem]] = None) -> None:
         super().__init__()
@@ -109,7 +120,7 @@ class PartsTableModel(QtCore.QAbstractTableModel):
         row = self._rows[index.row()]
         if role in (QtCore.Qt.DisplayRole, QtCore.Qt.EditRole):
             if index.column() == 0:
-                return row.length_mm
+                return _fmt_mm(row.length_mm)
             if index.column() == 1:
                 return row.qty
             if index.column() == 2:
@@ -122,13 +133,17 @@ class PartsTableModel(QtCore.QAbstractTableModel):
         r, c = index.row(), index.column()
         row = self._rows[r]
         if c in (0, 1):
-            try:
-                iv = int(str(value).strip())
-            except Exception:
-                return False
             if c == 0:
-                self._rows[r] = PartItem(length_mm=max(0, iv), qty=row.qty, label=row.label)
+                try:
+                    fv = float(str(value).strip())
+                except Exception:
+                    return False
+                self._rows[r] = PartItem(length_mm=round_up_to_half_mm(fv), qty=row.qty, label=row.label)
             else:
+                try:
+                    iv = int(str(value).strip())
+                except Exception:
+                    return False
                 self._rows[r] = PartItem(length_mm=row.length_mm, qty=max(0, iv), label=row.label)
         elif c == 2:
             self._rows[r] = PartItem(length_mm=row.length_mm, qty=row.qty, label=str(value))
