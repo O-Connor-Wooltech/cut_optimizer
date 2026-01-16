@@ -80,129 +80,20 @@ def export_plan_csv(path: str, result: OptimizeResult, kerf_mm: float) -> None:
 def export_plan_pdf(path: str, result: OptimizeResult, kerf_mm: float) -> None:
     """Export a multi-page PDF cut plan.
 
-    Layout:
+    The PDF uses a dynamic layout:
       - cuts listed vertically (rows)
       - sticks listed horizontally (columns)
-      - if there are too many sticks to fit, they are wrapped into multiple
-        column-blocks which continue *below* the previous block (and onto new
-        pages as needed).
+      - column widths adapt to the rendered width of the cut length + label
+      - if sticks exceed page width, they wrap into a new block below
+      - multiple pages are created automatically
+
+    This wrapper keeps the public API stable and delegates drawing to
+    cut_optimizer.pdf_export.export_plan_pdf.
     """
-    try:
-        from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.lib.styles import getSampleStyleSheet
-        from reportlab.lib import colors
-        from reportlab.lib.units import mm
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-    except Exception as e:
-        raise RuntimeError(
-            "PDF export requires the 'reportlab' package. Install it with: pip install reportlab"
-        ) from e
+    from .pdf_export import export_plan_pdf as _export
 
-    kerf_u = int(round(float(kerf_mm) * SCALE))
+    _export(path, result, kerf_mm)
 
-    page_w, page_h = landscape(A4)
-    margin = 12 * mm
-    doc = SimpleDocTemplate(
-        path,
-        pagesize=(page_w, page_h),
-        leftMargin=margin,
-        rightMargin=margin,
-        topMargin=margin,
-        bottomMargin=margin,
-        title="Cut Plan",
-    )
-
-    styles = getSampleStyleSheet()
-    story = []
-    story.append(Paragraph("Cut Plan", styles["Title"]))
-    story.append(Paragraph(f"Kerf: {kerf_mm:.1f} mm", styles["Normal"]))
-    story.append(Spacer(1, 6 * mm))
-
-    if not result.plans:
-        story.append(Paragraph("No plan generated.", styles["Normal"]))
-        doc.build(story)
-        return
-
-    # Column sizing
-    cut_col_w = 14 * mm
-    stick_col_w = 24 * mm
-    avail_w = page_w - (margin * 2) - cut_col_w
-    max_cols = max(1, int(avail_w // stick_col_w))
-
-    def fmt_part(p) -> str:
-        mm_s = u_to_mm_str(p.length_u)
-        return f"{mm_s} {p.label}".strip()
-
-    plans = result.plans
-    for start in range(0, len(plans), max_cols):
-        block = plans[start : start + max_cols]
-        idxs = list(range(start + 1, start + 1 + len(block)))
-
-        max_cuts = max((len(p.parts) for p in block), default=0)
-        data = []
-
-        header = ["Cut #"] + [f"Stick {i} ({u_to_mm_str(p.stock_length_u)})" for i, p in zip(idxs, block)]
-        data.append(header)
-
-        for r in range(max_cuts):
-            row = [str(r + 1)]
-            for p in block:
-                row.append(fmt_part(p.parts[r]) if r < len(p.parts) else "")
-            data.append(row)
-
-        # Add a leftover row at the end of each block.
-        leftover_row = ["Leftover"] + [u_to_mm_str(p.leftover_u(kerf_u)) for p in block]
-        data.append(leftover_row)
-
-        t = Table(
-            data,
-            colWidths=[cut_col_w] + [stick_col_w] * len(block),
-            repeatRows=1,
-            hAlign="LEFT",
-        )
-        t.setStyle(
-            TableStyle(
-                [
-                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 8),
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-                    ("BACKGROUND", (0, -1), (-1, -1), colors.whitesmoke),
-                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                    ("ALIGN", (0, 0), (0, -1), "CENTER"),
-                    ("ALIGN", (1, 1), (-1, -2), "LEFT"),
-                    ("ALIGN", (1, -1), (-1, -1), "CENTER"),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-                    ("TOPPADDING", (0, 0), (-1, -1), 2),
-                ]
-            )
-        )
-
-        story.append(t)
-        story.append(Spacer(1, 6 * mm))
-
-    if result.unallocated_parts:
-        story.append(PageBreak())
-        story.append(Paragraph("Unallocated parts", styles["Heading2"]))
-        ua = [["Length (mm)", "Label"]]
-        for p in result.unallocated_parts:
-            ua.append([u_to_mm_str(p.length_u), p.label])
-        t2 = Table(ua, colWidths=[30 * mm, 120 * mm], repeatRows=1)
-        t2.setStyle(
-            TableStyle(
-                [
-                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 9),
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ]
-            )
-        )
-        story.append(Spacer(1, 4 * mm))
-        story.append(t2)
-
-    doc.build(story)
 
 
 def _read_table(path: str) -> pd.DataFrame:
