@@ -239,8 +239,21 @@ def export_plan_pdf(
         y_cursor = top_y
 
         for b_start, b_end in blocks:
-            rows = row_end - row_start
-            block_h = layout.header_row_h + rows * layout.row_h
+            # Only render as many rows as are needed for this *block* of sticks.
+            # Previously we always used the global row slice height (row_end-row_start),
+            # which created lots of empty rows when some sticks in the block had fewer cuts.
+            # This in turn reduced how many blocks could fit on a page and increased page count.
+            rows_needed = 0
+            for stick_list in stick_cells[b_start:b_end]:
+                if len(stick_list) > row_start:
+                    rows_needed = max(rows_needed, min(row_end, len(stick_list)) - row_start)
+
+            # If every stick in this block is exhausted for this row slice, skip it.
+            if rows_needed <= 0:
+                continue
+
+            block_row_end = row_start + rows_needed
+            block_h = layout.header_row_h + rows_needed * layout.row_h
 
             # If the next block won't fit, start a new page and continue the same row slice.
             if y_cursor - block_h < bottom_y:
@@ -265,7 +278,7 @@ def export_plan_pdf(
                 cells=stick_cells[b_start:b_end],
                 col_widths=col_widths[b_start:b_end],
                 row_start=row_start,
-                row_end=row_end,
+                row_end=block_row_end,
             )
 
             y_cursor -= block_h + layout.block_gap
