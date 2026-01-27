@@ -176,6 +176,16 @@ class MainWindow(QtWidgets.QMainWindow):
             return os.path.join(os.path.dirname(self._parts_source_path), name)
         return f"cut_plan{ext}"
 
+    def _pdf_title(self) -> str:
+        """Build the PDF title shown in the top-left header.
+
+        If a Parts file was loaded, include its filename (without extension).
+        """
+        if self._parts_source_path:
+            stem = os.path.splitext(os.path.basename(self._parts_source_path))[0]
+            return f"Cut plan — {stem}"
+        return "Cut plan"
+
     def on_delete_stock(self) -> None:
         rows = sorted({idx.row() for idx in self.stock_view.selectionModel().selectedRows()})
         if rows:
@@ -272,7 +282,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if not path:
             return
         try:
-            export_plan_pdf(path, self._last_result, kerf)
+            export_plan_pdf(path, self._last_result, kerf, title=self._pdf_title())
             QtWidgets.QMessageBox.information(self, "Exported", f"Exported:\n{path}")
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Export error", str(e))

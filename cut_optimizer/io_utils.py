@@ -77,7 +77,7 @@ def export_plan_csv(path: str, result: OptimizeResult, kerf_mm: float) -> None:
         ).to_csv(path + ".unallocated.csv", index=False)
 
 
-def export_plan_pdf(path: str, result: OptimizeResult, kerf_mm: float) -> None:
+def export_plan_pdf(path: str, result: OptimizeResult, kerf_mm: float, *, title: str = "Cut plan") -> None:
     """Export a multi-page PDF cut plan.
 
     The PDF uses a dynamic layout:
@@ -92,7 +92,7 @@ def export_plan_pdf(path: str, result: OptimizeResult, kerf_mm: float) -> None:
     """
     from .pdf_export import export_plan_pdf as _export
 
-    _export(path, result, kerf_mm)
+    _export(path, result, kerf_mm, title=title)
 
 
 

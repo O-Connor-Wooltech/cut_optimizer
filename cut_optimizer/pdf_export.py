@@ -304,14 +304,21 @@ def _draw_page_header(
     x = layout.margin
     y = layout.page_h - layout.margin
 
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(x, y, title)
-
-    c.setFont("Helvetica", 9)
+    # Build meta first so we can keep the title from overlapping it.
     meta = f"Kerf: {kerf_mm:.1f} mm"
     if row_range is not None:
         meta += f"   Cuts: {row_range[0]}-{row_range[1]}"
     meta += f"   Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+
+    # Truncate the title if needed so it doesn't collide with the right-aligned meta text.
+    meta_w = _string_width(meta, "Helvetica", 9)
+    max_title_w = (layout.page_w - 2 * layout.margin) - meta_w - 18.0
+    title_draw = _truncate(title, "Helvetica-Bold", 14, max_title_w) if max_title_w > 0 else title
+
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(x, y, title_draw)
+
+    c.setFont("Helvetica", 9)
     c.drawRightString(layout.page_w - layout.margin, y, meta)
 
     # Footer page number
