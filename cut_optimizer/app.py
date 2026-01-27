@@ -2,14 +2,21 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 from typing import Optional
 
-from PySide6 import QtWidgets
+from PySide6 import QtWidgets, QtGui
 
 from .models import StockTableModel, PartsTableModel
 from .io_utils import load_stock_table, load_parts_table, export_plan_csv, export_plan_pdf
 from .optimizer import optimize_cut_order, OptimizeResult, u_to_mm_str, SCALE
 
+def _icon_path() -> Path:
+    # Works in dev and in PyInstaller onefile/onedir builds
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        base = Path(sys._MEIPASS)  # type: ignore[attr-defined]
+        return base / "cut_optimizer" / "assets" / "app_icon.png"
+    return Path(__file__).resolve().parent / "assets" / "app_icon.png"
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
@@ -273,6 +280,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
 def main() -> int:
     app = QtWidgets.QApplication(sys.argv)
+
+    icon = QtGui.QIcon(str(_icon_path()))
+    app.setWindowIcon(icon)
+
     w = MainWindow()
+    w.setWindowIcon(icon)
     w.show()
     return app.exec()
