@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from typing import Optional
 
@@ -114,6 +115,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(central)
 
         self._last_result: Optional[OptimizeResult] = None
+        self._parts_source_path: Optional[str] = None
 
         self.btn_load_stock.clicked.connect(self.on_load_stock)
         self.btn_load_parts.clicked.connect(self.on_load_parts)
@@ -150,9 +152,22 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             items = load_parts_table(path)
             self.parts_model.set_rows(items)
+            self._parts_source_path = path
             self.log(f"Loaded parts from: {path}")
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Load error", str(e))
+
+    def _default_export_path(self, ext: str) -> str:
+        """Suggest a default export filename.
+
+        If the user loaded a Parts file, base the export name on that filename.
+        Otherwise, fall back to a generic name.
+        """
+        if self._parts_source_path:
+            base = os.path.splitext(os.path.basename(self._parts_source_path))[0]
+            name = f"{base}_cut_plan{ext}"
+            return os.path.join(os.path.dirname(self._parts_source_path), name)
+        return f"cut_plan{ext}"
 
     def on_delete_stock(self) -> None:
         rows = sorted({idx.row() for idx in self.stock_view.selectionModel().selectedRows()})
@@ -225,7 +240,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self._last_result:
             return
         kerf = float(self.kerf_spin.value())
-        path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Export Plan CSV", "cut_plan.csv", "CSV (*.csv)")
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Export Plan CSV", self._default_export_path(".csv"), "CSV (*.csv)"
+        )
         if not path:
             return
         try:
@@ -242,7 +259,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self._last_result:
             return
         kerf = float(self.kerf_spin.value())
-        path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Export Plan PDF", "cut_plan.pdf", "PDF (*.pdf)")
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Export Plan PDF", self._default_export_path(".pdf"), "PDF (*.pdf)"
+        )
         if not path:
             return
         try:
