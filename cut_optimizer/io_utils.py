@@ -71,10 +71,10 @@ def export_plan_csv(path: str, result: OptimizeResult, kerf_mm: float) -> None:
     pd.DataFrame(rows).to_csv(path, index=False)
     pd.DataFrame([result.summary]).to_csv(path + ".summary.csv", index=False)
 
-    if result.unallocated_parts:
-        pd.DataFrame(
-            [{"part_length_mm": u_to_mm_str(p.length_u), "label": p.label} for p in result.unallocated_parts]
-        ).to_csv(path + ".unallocated.csv", index=False)
+    # Always write the unallocated CSV, even when empty, so we never leave stale
+    # data from a previous export on disk.
+    unalloc_rows = [{"part_length_mm": u_to_mm_str(p.length_u), "label": p.label} for p in result.unallocated_parts]
+    pd.DataFrame(unalloc_rows, columns=["part_length_mm", "label"]).to_csv(path + ".unallocated.csv", index=False)
 
 
 def export_plan_pdf(path: str, result: OptimizeResult, kerf_mm: float, *, title: str = "Cut plan") -> None:

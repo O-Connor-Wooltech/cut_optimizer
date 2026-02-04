@@ -267,7 +267,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.information(
                 self,
                 "Exported",
-                f"Exported:\n{path}\n\nAlso wrote:\n{path}.summary.csv\n{path}.unallocated.csv (if needed)",
+                f"Exported:\n{path}\n\nAlso wrote:\n{path}.summary.csv\n{path}.unallocated.csv (may be empty)",
             )
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Export error", str(e))
