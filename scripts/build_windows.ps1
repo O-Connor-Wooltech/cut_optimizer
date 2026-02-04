@@ -25,13 +25,18 @@ if (Test-Path $distPath) {
     }
 }
 
-pyinstaller --noconfirm --name "CutOptimizer" --windowed --clean `
+# On Windows, the "pyinstaller.exe" console-script launcher can embed an absolute path
+# to the Python interpreter from when it was first installed. If the project folder was
+# moved/renamed (or a .venv was copied), this can break with:
+#   "Fatal error in launcher: Unable to create process using ..."
+# Running PyInstaller as a module avoids that launcher entirely.
+python -m PyInstaller --noconfirm --name "CutOptimizer" --windowed --clean `
   --hidden-import PySide6.QtSvg `
   --hidden-import PySide6.QtXml `
   run_app.py
 
+if ($LASTEXITCODE -ne 0) {
+    throw "PyInstaller failed with exit code $LASTEXITCODE"
+}
+
 Write-Host "Built app in dist/"
-
-
-
-
